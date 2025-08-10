@@ -1,0 +1,80 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test AI_agent</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background:linear-gradient(45deg, #d3d3d3, #a8d5ba); }
+    #chatbox { border:1px solid #ddd; padding: 12px; height: 420px; overflow-y: auto;  outline:none; border-radius:10px; background-color: rgba(255, 255, 255, 0.8); }
+    .msg { margin: 8px 0; }
+    .user { color: #0b5; }
+    .bot { color: #256; }
+    #controls { margin-top: 12px; border: none;}
+    input#message { width: 76%; padding: 8px;  outline:none; border-radius:8px; background-color: rgba(255, 255, 255, 0.8);}
+    button { padding: 8px 12px; }
+    pre { background:#eee; padding:8px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Test AI_agent</h1>
+  <div id="chatbox"></div>
+  <div id="controls">
+    <input id="message" placeholder="Type Here "/>
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <!-- Django provides csrf token cookie automatically for authenticated forms.
+       it read the csrf token cookie to send with  requests -->
+  <script>
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    const chatbox = document.getElementById('chatbox');
+    const input = document.getElementById('message');
+
+    function appendMsg(from, text) {
+      const el = document.createElement('div');
+      el.className = 'msg ' + (from === 'user' ? 'user' : 'bot');
+      el.innerHTML = `<strong>${from === 'user' ? 'You' : 'TestAI'}:</strong> ${text.replace(/\n/g,'<br/>')}`;
+      chatbox.appendChild(el);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const msg = input.value.trim();
+      if (!msg) return;
+      appendMsg('user', msg);
+      input.value = '';
+      appendMsg('bot', '<em>Collecting info</em>');
+
+      try {
+        const res = await fetch("", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrftoken
+          },
+          body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        // remove the temporary "Thinking…" last bot message
+        const lastBot = chatbox.querySelectorAll('.bot');
+        if (lastBot.length) lastBot[lastBot.length-1].remove();
+        appendMsg('bot', data.reply || "(no reply)");
+      } catch (err) {
+        const lastBot = chatbox.querySelectorAll('.bot');
+        if (lastBot.length) lastBot[lastBot.length-1].remove();
+        appendMsg('bot', 'Error contacting server: ' + err.toString());
+      }
+    }
+
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+  </script>
+</body>
+</html>
